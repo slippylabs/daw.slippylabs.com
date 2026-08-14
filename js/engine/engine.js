@@ -64,7 +64,7 @@ export class Engine {
     const wasPlaying = this.playing;
     const at = this.currentBeat();
     if (this.graph) this.graph.dispose();
-    this.graph = buildGraph(this.ctx, this.project);
+    this.graph = buildGraph(this.ctx, this.project, { audioBuffers: this.audioBuffers });
     this.clipIndex = buildClipIndex(this.project);
     if (wasPlaying) {
       this.stop(true);

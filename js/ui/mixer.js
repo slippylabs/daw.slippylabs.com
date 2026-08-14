@@ -7,7 +7,7 @@
 // ============================================================
 
 import { EFFECT_TYPES, EFFECT_DEFAULTS, paramsFor } from '../engine/effects.js';
-import { INSTRUMENT_PARAMS, INSTRUMENT_TYPES } from '../engine/instruments.js';
+import { INSTRUMENT_PARAMS, INSTRUMENT_TYPES, INSTRUMENT_DEFAULTS, ANALOG_PRESETS } from '../engine/instruments.js';
 import { uid, gainToDb } from '../util.js';
 
 export class MixerView {
@@ -275,6 +275,11 @@ export function renderPluginWindow(container, titleEl, spec, app) {
     container.appendChild(row);
   });
 
+  // A spec can contribute its own section beyond the flat parameter list —
+  // the drum kit's sample slots are one, and doing it through a hook keeps
+  // the generic renderer generic.
+  if (spec.custom) spec.custom(container);
+
   if (spec.footer) {
     const f = document.createElement('div');
     f.style.cssText = 'font-size:.62rem;color:#7fa695;line-height:1.5;border-top:1px solid rgba(57,255,143,.2);padding-top:8px';
@@ -286,12 +291,28 @@ export function renderPluginWindow(container, titleEl, spec, app) {
 export function instrumentSpec(app, channel) {
   const meta = INSTRUMENT_TYPES.find((t) => t.type === channel.instrument);
   return {
+    custom: channel.instrument === 'drumkit' ? (el) => app.renderSampleSlots(el, channel) : null,
     title: `${meta ? meta.icon : ''} ${meta ? meta.name : channel.instrument} — ${channel.name}`,
     params: INSTRUMENT_PARAMS[channel.instrument] || [],
     footer: meta ? meta.blurb : '',
     get: (name) => {
-      if (channel.params[name] !== undefined) return channel.params[name];
-      return null;
+      if (channel.params[name] !== undefined && channel.params[name] !== null) {
+        return channel.params[name];
+      }
+      const defaults = INSTRUMENT_DEFAULTS[channel.instrument] || {};
+      const fallback = defaults[name];
+      // Analog's cutoff/attack/release deliberately default to null, meaning
+      // "whatever the selected preset says" — so that is what the knob should
+      // read, not the slider's minimum.
+      if (fallback === null || fallback === undefined) {
+        if (channel.instrument === 'analog') {
+          const presetId = channel.params.preset ?? defaults.preset;
+          const preset = ANALOG_PRESETS.find((x) => x.id === presetId);
+          if (preset && preset[name] !== undefined) return preset[name];
+        }
+        return fallback === null ? 0 : null;
+      }
+      return fallback;
     },
     set: (name, value) => {
       channel.params[name] = value;

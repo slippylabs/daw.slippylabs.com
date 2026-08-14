@@ -34,7 +34,7 @@ export function swungBeat(beat, swingPercent) {
  * Sends are taken post-fader, so pulling a channel down takes its reverb
  * with it — the behaviour people expect from a mixing desk.
  */
-export function buildGraph(ctx, project, { destination = null } = {}) {
+export function buildGraph(ctx, project, { destination = null, audioBuffers = null } = {}) {
   const dest = destination || ctx.destination;
   const inserts = [];
   const disposers = [];
@@ -112,8 +112,34 @@ export function buildGraph(ctx, project, { destination = null } = {}) {
   // --- instruments, one per channel, routed to its insert ---
   const soloedChannels = project.channels.some((c) => c.solo);
   const channels = new Map();
+
+  /** Projects store audio as asset *ids*; instruments need real AudioBuffers,
+   *  and a buffer belongs to the context that created it. Resolving here — the
+   *  one place that knows both the project and the context — is what stops a
+   *  sampled kit from playing fine live and coming out silent in an export,
+   *  which is the failure mode you would never notice until you opened the
+   *  exported file. */
+  function resolveParams(ch) {
+    const params = { ...(ch.params || {}) };
+    const ids = params.sampleIds;
+    if (ids && audioBuffers) {
+      const resolved = {};
+      let any = false;
+      Object.keys(ids).forEach((slot) => {
+        const buf = ids[slot] && audioBuffers.get(ids[slot]);
+        if (buf) { resolved[slot] = buf; any = true; }
+      });
+      if (any) params.sampleBuffers = resolved;
+    }
+    if (params.bufferId && audioBuffers) {
+      const buf = audioBuffers.get(params.bufferId);
+      if (buf) params.buffer = buf;
+    }
+    return params;
+  }
+
   project.channels.forEach((ch) => {
-    const inst = createInstrument(ctx, ch.instrument, { ...(ch.params || {}) });
+    const inst = createInstrument(ctx, ch.instrument, resolveParams(ch));
     const gate = ctx.createGain();
     const audible = !ch.mute && (!soloedChannels || ch.solo);
     gate.gain.value = audible ? 1 : 0;

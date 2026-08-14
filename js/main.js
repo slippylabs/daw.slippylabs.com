@@ -14,7 +14,8 @@ import {
   createInsert, createPlaylistTrack, createClip, findPattern, findChannel,
   songLengthBeats, PPQ_SNAP, TRACK_COLORS,
 } from './model/project.js';
-import { INSTRUMENT_TYPES, DRUM_VOICES } from './engine/instruments.js';
+import { INSTRUMENT_TYPES, DRUM_VOICES, DRUM_KITS } from './engine/instruments.js';
+import { LOOPS, LOOP_CATEGORIES } from './model/loops.js';
 import { EFFECT_TYPES } from './engine/effects.js';
 import { PianoRoll } from './ui/pianoroll.js';
 import { Playlist } from './ui/playlist.js';
@@ -617,6 +618,176 @@ class App {
     this.autosaveSoon();
   }
 
+
+  // ---------- loop library ----------
+
+  /** Find a channel that can play this loop, or make one.
+   *
+   *  Matching on instrument *and* pitched-mode matters: a bass loop written
+   *  for a pitched 808 kit would be silent on a drum-mode kit, because every
+   *  note falls outside the eight fixed voice pitches. */
+  channelForLoop(loop) {
+    const t = loop.target;
+    const existing = this.project.channels.find((c) => (
+      c.instrument === t.instrument && !!c.pitched === !!t.pitched
+    ));
+    if (existing) return existing;
+    const insertIndex = Math.min(
+      Math.max(1, this.project.mixer.inserts.length - 1),
+      this.project.channels.length + 1,
+    );
+    const ch = createChannel({
+      name: t.name,
+      instrument: t.instrument,
+      params: { ...(t.params || {}) },
+      pitched: !!t.pitched,
+      stepPitch: t.stepPitch,
+      insert: this.project.mixer.inserts.length > 1 ? insertIndex : 0,
+      color: TRACK_COLORS[this.project.channels.length % TRACK_COLORS.length],
+    });
+    this.project.channels.push(ch);
+    return ch;
+  }
+
+  loadLoop(loop) {
+    const pat = this.selectedPattern();
+    if (!pat) { this.toast('Make a pattern first.'); return; }
+    this.pushUndo();
+
+    const ch = this.channelForLoop(loop);
+    // A loop written for a specific kit should sound like that kit, but only
+    // when the channel was created for it — silently reskinning a kit the
+    // user already set up would be worse than the loop sounding slightly off.
+    const bars = this.project.beatsPerBar || 4;
+    const needed = loop.bars * bars;
+    if (pat.lengthBeats < needed) pat.lengthBeats = needed;
+
+    pat.notes[ch.id] = loop.notes.map((n) => ({ ...n }));
+    this.project.selection.channelId = ch.id;
+
+    this.afterStructuralChange();
+    const off = Math.abs(loop.bpm - this.project.bpm) > loop.bpm * 0.04;
+    this.toast(off
+      ? `Loaded ${loop.name} — written at ${loop.bpm} BPM, project is at ${this.project.bpm}.`
+      : `Loaded ${loop.name}`);
+  }
+
+  loopMenu(e) {
+    const items = [];
+    LOOP_CATEGORIES.forEach((cat) => {
+      items.push({ header: cat });
+      LOOPS.filter((l) => l.category === cat).forEach((l) => {
+        items.push({ label: `${l.name}  ·  ${l.bpm}`, action: () => this.loadLoop(l) });
+      });
+    });
+    this.showMenu(e, items);
+  }
+
+  /** Render the selected pattern to an audio clip.
+   *
+   *  This is the "real audio loop" path, and it costs nothing to host: the
+   *  offline renderer already exists, and the resulting buffer goes through
+   *  the same import path as a dragged-in file. */
+  async bouncePattern() {
+    const pat = this.selectedPattern();
+    if (!pat) return;
+    this.toast('Bouncing…');
+    try {
+      const buf = await renderProject(this.project, {
+        mode: 'pattern',
+        fromBeat: 0,
+        toBeat: pat.lengthBeats,
+        tailSec: 1.5,
+        sampleRate: 44100,
+        audioBuffers: this.engine.audioBuffers,
+      });
+      if (peakOf(buf) === 0) { this.toast('Nothing to bounce — this pattern is silent.'); return; }
+      await this.addAudioAsset(`${pat.name} (bounce)`, buf);
+    } catch (err) {
+      this.toast(`Bounce failed: ${err.message}`);
+    }
+  }
+
+  // ---------- drum kit sample slots ----------
+
+  /** Rendered inside the Drum Kit plugin window via the spec's custom hook. */
+  renderSampleSlots(container, channel) {
+    const wrap = document.createElement('div');
+    wrap.className = 'slot-list';
+    const head = document.createElement('div');
+    head.className = 'slot-head';
+    head.textContent = 'Samples — load your own onto any voice';
+    wrap.appendChild(head);
+
+    const ids = channel.params.sampleIds || {};
+    DRUM_VOICES.forEach((v) => {
+      const row = document.createElement('div');
+      row.className = 'slot-row';
+      const name = document.createElement('span');
+      name.className = 'slot-name';
+      name.textContent = v.name;
+      const state = document.createElement('span');
+      state.className = 'slot-state';
+      const assetId = ids[v.id];
+      const asset = assetId && this.project.audioAssets.find((a) => a.id === assetId);
+      state.textContent = asset ? asset.name : 'synth';
+      state.classList.toggle('loaded', !!asset);
+
+      const load = document.createElement('button');
+      load.className = 'mini';
+      load.textContent = 'Load';
+      load.addEventListener('click', () => this.pickSampleForSlot(channel, v.id));
+
+      const clear = document.createElement('button');
+      clear.className = 'mini';
+      clear.textContent = '×';
+      clear.title = 'Back to the synthesized voice';
+      clear.disabled = !asset;
+      clear.addEventListener('click', () => {
+        this.pushUndo();
+        if (channel.params.sampleIds) delete channel.params.sampleIds[v.id];
+        this.engine.rebuild();
+        this.openInstrumentWindow(channel);
+        this.autosave();
+      });
+
+      row.append(name, state, load, clear);
+      wrap.appendChild(row);
+    });
+    container.appendChild(wrap);
+  }
+
+  pickSampleForSlot(channel, voiceId) {
+    this._pendingSlot = { channel, voiceId };
+    $('slot-input').click();
+  }
+
+  async loadSampleIntoSlot(file) {
+    const pending = this._pendingSlot;
+    if (!pending) return;
+    this._pendingSlot = null;
+    try {
+      const buf = await this.engine.ctx.decodeAudioData(await file.arrayBuffer());
+      const id = uid('asset');
+      this.engine.audioBuffers.set(id, buf);
+      await putAsset(id, buf);
+      this.pushUndo();
+      this.project.audioAssets.push({
+        id, name: file.name.replace(/\.[^.]+$/, ''),
+        duration: buf.duration, sampleRate: buf.sampleRate, channels: buf.numberOfChannels,
+      });
+      const ch = pending.channel;
+      if (!ch.params.sampleIds) ch.params.sampleIds = {};
+      ch.params.sampleIds[pending.voiceId] = id;
+      this.engine.rebuild();
+      this.openInstrumentWindow(ch);
+      this.autosave();
+      this.toast(`${file.name} loaded onto ${pending.voiceId}`);
+    } catch {
+      this.toast(`Could not decode ${file.name}`);
+    }
+  }
+
   // ---------- on-screen keyboard ----------
 
   buildKeyboard() {
@@ -853,6 +1024,14 @@ class App {
         name: `Track ${this.project.playlist.tracks.length + 1}`,
       }));
       this.touch(); this.autosave();
+    });
+
+    $('btn-loops').addEventListener('click', (e) => this.loopMenu(e));
+    $('btn-bounce').addEventListener('click', () => this.bouncePattern());
+    $('slot-input').addEventListener('change', async (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (f) await this.loadSampleIntoSlot(f);
     });
 
     $('btn-import-audio').addEventListener('click', () => $('audio-input').click());

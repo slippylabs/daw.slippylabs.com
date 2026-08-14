@@ -1,0 +1,15 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>baseline</title></head><body>
+<script type="module">
+// Renders the demo song and posts it back as base64 WAV, so a refactor can be
+// proved not to have changed the sound rather than assumed not to have.
+import { demoProject } from '../js/model/project.js';
+import { renderProject, encodeWav } from '../js/engine/render.js';
+const buf = await renderProject(demoProject(), { toBeat: 16, tailSec: 1, sampleRate: 44100 });
+const wav = encodeWav(buf, 16);
+let bin = '';
+const bytes = new Uint8Array(wav);
+const CH = 0x8000;
+for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+await fetch('/__results', { method: 'POST', body: btoa(bin) });
+document.body.textContent = 'posted ' + wav.byteLength + ' bytes';
+</script></body></html>
