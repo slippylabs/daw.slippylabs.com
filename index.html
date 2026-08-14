@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SlipDAW // daw.slippylabs.com</title>
+<meta name="description" content="SlipDAW — a full digital audio workstation in your browser. Channel rack, piano roll, playlist and mixer, with 5 built-in instruments and 17 effect plugins. Write, record, mix, master and export to WAV. No signup, no install.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://daw.slippylabs.com/">
+<meta property="og:title" content="SlipDAW // daw.slippylabs.com">
+<meta property="og:description" content="A full digital audio workstation in your browser — channel rack, piano roll, playlist, mixer, 5 instruments, 17 plugins, and WAV export.">
+<meta property="og:image" content="https://daw.slippylabs.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SlipDAW // daw.slippylabs.com">
+<meta name="twitter:description" content="A full digital audio workstation in your browser — channel rack, piano roll, playlist, mixer, 5 instruments, 17 plugins, and WAV export.">
+<meta name="twitter:image" content="https://daw.slippylabs.com/og-image.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22%23060d12%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%2214%22%20width%3D%226%22%20height%3D%2236%22%20fill%3D%22%2339ff8f%22%2F%3E%3Crect%20x%3D%2220%22%20y%3D%2222%22%20width%3D%226%22%20height%3D%2220%22%20fill%3D%22%2339ff8f%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%228%22%20width%3D%226%22%20height%3D%2248%22%20fill%3D%22%2339ff8f%22%2F%3E%3Crect%20x%3D%2244%22%20y%3D%2218%22%20width%3D%226%22%20height%3D%2228%22%20fill%3D%22%2339ff8f%22%2F%3E%3C%2Fsvg%3E">
+<meta name="theme-color" content="#060d12">
+<link rel="stylesheet" href="css/style.css?v=1">
+<link rel="stylesheet" href="css/daw.css?v=1">
+<script>/* perf-lite: drop blend/blur effects on low-power devices. ?fx=lite or ?fx=full to override (persisted). */
+(function(){try{var k="slippy-fx",m=location.search.match(/[?&]fx=(lite|full)/),v=m?m[1]:localStorage.getItem(k);if(m)localStorage.setItem(k,v);if(v==="lite"||(v!=="full"&&(navigator.hardwareConcurrency||8)<=2))document.documentElement.classList.add("perf-lite");}catch(e){}})();</script>
+</head>
+<body class="daw-mode">
+
+<div class="arm" id="arm">
+  <div class="inner">
+    <h2>SLIPDAW</h2>
+    <p>A full digital audio workstation that runs entirely in this tab — channel rack, piano roll,
+    playlist, mixer and mastering chain, with five built-in instruments and seventeen effect
+    plugins. Nothing is uploaded and nothing is installed.</p>
+    <p style="font-size:.74rem;opacity:.75">A note on plugins: real VST/VST3 files are compiled native
+    binaries and cannot run in a browser — no site can load them. Every instrument and effect here is
+    written in Web Audio instead, so they do the same job without leaving the page.</p>
+    <button class="big" id="arm-btn">Open the studio</button>
+    <p style="font-size:.68rem;opacity:.6;margin-top:14px">Best on a desktop with headphones.
+    A demo song loads automatically — press play.</p>
+  </div>
+</div>
+
+<div class="daw-shell" id="shell" aria-hidden="true">
+
+  <div class="daw-top">
+    <span class="daw-brand">SLIPDAW</span>
+    <div class="transport">
+      <button class="tbtn play" id="btn-play" title="Play / pause (Space)">&#9654;</button>
+      <button class="tbtn" id="btn-stop" title="Stop">&#9632;</button>
+      <button class="tbtn rec" id="btn-rec" title="Record from microphone">&#9679;</button>
+    </div>
+    <div class="transport">
+      <button class="tbtn on" id="btn-pat" title="Loop the selected pattern">PAT</button>
+      <button class="tbtn" id="btn-song" title="Play the playlist">SONG</button>
+    </div>
+    <div class="field">
+      <label for="bpm">BPM</label>
+      <input type="number" id="bpm" min="40" max="300" step="0.1" value="140">
+    </div>
+    <div class="field">
+      <label for="swing">Swing</label>
+      <input type="number" id="swing" min="0" max="100" step="1" value="12">
+    </div>
+    <div class="readout num" id="pos">1:1:1</div>
+    <button class="tbtn" id="btn-metro" title="Metronome">MET</button>
+    <button class="tbtn on" id="btn-loop" title="Loop">LOOP</button>
+    <div class="spacer"></div>
+    <div class="meter" id="master-meter" title="Master output level"><i></i></div>
+    <button class="mini" id="btn-file">FILE</button>
+    <button class="mini" id="btn-export">EXPORT</button>
+    <a class="mini" href="https://music.slippylabs.com/" style="text-decoration:none">&larr; SOUND BAY</a>
+  </div>
+
+  <div class="mobile-note">SlipDAW is built for a desktop screen — on a phone the grids are cramped, but everything still plays.</div>
+
+  <div class="daw-body">
+
+    <aside class="rack">
+      <div class="panel-head">
+        <span class="grow">Channel Rack</span>
+        <select id="pattern-select" title="Selected pattern"></select>
+      </div>
+      <div class="panel-head" style="border-top:none">
+        <button class="mini" id="btn-add-chan">+ Channel</button>
+        <button class="mini" id="btn-add-pat">+ Pattern</button>
+        <button class="mini" id="btn-pat-len" title="Pattern length in bars">Len</button>
+      </div>
+      <div class="rack-scroll" id="rack-list"></div>
+    </aside>
+
+    <section class="main">
+      <div class="tabs">
+        <button class="mini on" data-view="playlist">Playlist</button>
+        <button class="mini" data-view="piano">Piano Roll</button>
+        <button class="mini" data-view="mixer">Mixer</button>
+        <span class="spacer" style="flex:1"></span>
+        <button class="mini" id="btn-undo" title="Undo (Ctrl+Z)">Undo</button>
+        <button class="mini" id="btn-redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+        <button class="mini" id="btn-help">?</button>
+      </div>
+
+      <div class="view" id="view">
+        <div class="pane show" data-pane="playlist">
+          <div class="editor-bar">
+            <span>Snap</span>
+            <select id="pl-snap"></select>
+            <span>Zoom</span>
+            <input type="range" id="pl-zoom" min="8" max="80" step="1" value="26" style="width:110px">
+            <button class="mini" id="btn-add-track">+ Track</button>
+            <button class="mini" id="btn-import-audio">Import Audio</button>
+            <span style="opacity:.6">Click a clip to select &middot; drag to move &middot; right edge to resize &middot; Delete removes &middot; right-click empty space to place the selected pattern</span>
+          </div>
+          <div class="canvas-wrap" id="pl-wrap"><canvas class="grid" id="pl-canvas"></canvas></div>
+        </div>
+
+        <div class="pane" data-pane="piano">
+          <div class="editor-bar">
+            <span>Snap</span>
+            <select id="pr-snap"></select>
+            <span>Zoom</span>
+            <input type="range" id="pr-zoom" min="16" max="120" step="1" value="48" style="width:110px">
+            <span>Vel</span>
+            <input type="range" id="pr-vel" min="1" max="127" step="1" value="100" style="width:90px">
+            <span class="num" id="pr-vel-val">100</span>
+            <button class="mini" id="btn-quantize">Quantize</button>
+            <button class="mini" id="btn-clear-notes">Clear</button>
+            <span style="opacity:.6">Draw with the left button &middot; right-click erases &middot; drag a note to move &middot; drag its right edge to resize</span>
+          </div>
+          <div class="canvas-wrap" id="pr-wrap"><canvas class="grid" id="pr-canvas"></canvas></div>
+        </div>
+
+        <div class="pane" data-pane="mixer">
+          <div class="mixer-scroll" id="mixer-scroll"></div>
+        </div>
+
+        <div class="plugwin" id="plugwin">
+          <header>
+            <span class="grow" id="plug-title">Plugin</span>
+            <button class="mini" id="plug-close">&times;</button>
+          </header>
+          <div class="body" id="plug-body"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="keybar">
+    <div class="keys" id="keys"></div>
+    <div class="status" id="status">ready</div>
+  </div>
+</div>
+
+<div class="menu" id="menu"></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="audio-input" accept="audio/*" multiple hidden>
+<input type="file" id="project-input" accept="application/json,.json" hidden>
+
+<script type="module" src="js/main.js?v=1"></script>
+</body>
+</html>

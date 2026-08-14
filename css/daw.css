@@ -1,0 +1,506 @@
+/* ============================================================
+   SlipDAW — workspace styling
+   Layered on top of the shared Star Fox HUD sheet (css/style.css).
+
+   Two rules inherited from that sheet that matter here:
+   - Nothing under .hud-panel may use `transition: opacity` — it sticks at
+     its starting value in this Chromium. Toggle `display` instead.
+   - "Press Start 2P" renders 8 as S and 0 as O. A DAW is wall-to-wall
+     numbers (BPM, bars, dB, times), so every readout below is explicitly
+     monospace, never the pixel font.
+   ============================================================ */
+
+:root {
+  --daw-bg: #060d12;
+  --daw-panel: rgba(10, 22, 19, 0.92);
+  --daw-line: rgba(57, 255, 143, 0.22);
+  --daw-line-strong: rgba(57, 255, 143, 0.42);
+  --daw-row: rgba(255, 255, 255, 0.03);
+  --mono: "Consolas", "SFMono-Regular", Menlo, Monaco, "Courier New", monospace;
+}
+
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* The decorative starfield and scanlines are disabled inside the workspace.
+   They were the dominant cost in the sitewide performance pass, and here they
+   would be competing for frames with audio scheduling and canvas redraws. */
+body.daw-mode .starfield,
+body.daw-mode .scanlines,
+body.daw-mode .starfox-horizon { display: none; }
+
+body.daw-mode {
+  background: var(--daw-bg);
+  overflow: hidden;
+}
+
+.daw-shell {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  z-index: 3;
+}
+
+/* ---------- top bar ---------- */
+.daw-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--daw-line-strong);
+  background: var(--daw-panel);
+  flex-wrap: wrap;
+}
+.daw-brand {
+  font-family: "Press Start 2P", var(--mono);
+  font-size: 10px;
+  color: var(--hud-green);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 10px rgba(57, 255, 143, 0.4);
+  white-space: nowrap;
+}
+.transport { display: flex; gap: 6px; align-items: center; }
+.tbtn {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  min-width: 44px;
+  min-height: 34px;
+  padding: 4px 12px;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--daw-line-strong);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.tbtn:hover { color: var(--hud-green); border-color: var(--hud-green); }
+.tbtn.on { color: var(--hud-green); border-color: var(--hud-green); background: rgba(57, 255, 143, 0.14); }
+.tbtn.play.on { color: #060d12; background: var(--hud-green); }
+.tbtn.rec.on { color: #fff; background: var(--hud-red); border-color: var(--hud-red); }
+
+.field { display: flex; align-items: center; gap: 6px; }
+.field label {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.field input[type="number"] {
+  width: 66px;
+  min-height: 34px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--daw-line-strong);
+  color: var(--hud-green);
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  padding: 4px 6px;
+  text-align: right;
+}
+.readout {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: var(--hud-green);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--daw-line);
+  padding: 6px 10px;
+  min-width: 92px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.daw-top .spacer { flex: 1 1 auto; }
+
+/* master meter */
+.meter {
+  width: 120px; height: 12px;
+  border: 1px solid var(--daw-line-strong);
+  background: rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+.meter i {
+  position: absolute; inset: 0 100% 0 0;
+  background: linear-gradient(90deg, #1c8a52, #39ff8f 70%, #ffd166 88%, #ff4655);
+}
+.meter.clip { border-color: var(--hud-red); box-shadow: 0 0 8px rgba(255,70,85,.6); }
+
+/* ---------- body ---------- */
+.daw-body {
+  display: grid;
+  grid-template-columns: 268px 1fr;
+  min-height: 0;
+}
+.rack {
+  border-right: 1px solid var(--daw-line-strong);
+  background: rgba(6, 14, 12, 0.9);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.panel-head {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--daw-line);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hud-orange);
+}
+.panel-head .grow { flex: 1; }
+.mini {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  min-height: 28px;
+  padding: 3px 8px;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--daw-line);
+  cursor: pointer;
+}
+.mini:hover { color: var(--hud-green); border-color: var(--hud-green-dim); }
+.mini.on { color: var(--hud-green); border-color: var(--hud-green); }
+
+.rack-scroll { overflow: auto; flex: 1; min-height: 0; }
+
+.chan {
+  border-bottom: 1px solid var(--daw-line);
+  padding: 6px 8px;
+}
+.chan.sel { background: rgba(57, 255, 143, 0.07); }
+.chan-head { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.chan-name {
+  flex: 1;
+  font-size: 0.74rem;
+  color: var(--text-main);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chan.sel .chan-name { color: var(--hud-green); }
+.dot-btn {
+  width: 20px; height: 20px;
+  line-height: 1;
+  font-size: 0.58rem;
+  font-family: var(--mono);
+  border: 1px solid var(--daw-line-strong);
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0;
+}
+.dot-btn.on { background: var(--hud-green); color: #060d12; border-color: var(--hud-green); }
+.dot-btn.solo.on { background: var(--hud-orange); border-color: var(--hud-orange); color: #060d12; }
+
+.steps { display: flex; gap: 2px; }
+.steprow { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
+.steprow .lbl {
+  width: 58px;
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.step {
+  flex: 1;
+  height: 16px;
+  min-width: 8px;
+  border: 1px solid rgba(57, 255, 143, 0.18);
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  padding: 0;
+}
+.step.beat { border-left-color: var(--daw-line-strong); }
+.step.on { background: var(--hud-green); border-color: var(--hud-green); }
+.step.playing { box-shadow: inset 0 0 0 1px var(--hud-orange); }
+
+/* ---------- main area ---------- */
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--daw-line);
+  background: rgba(6, 14, 12, 0.8);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.view { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+.view > .pane { position: absolute; inset: 0; display: none; }
+/* Flex column, not a plain block: the scroll area has to take the space left
+   after the toolbar. As `position: absolute; inset: 0` it covered the toolbar
+   instead, hiding the snap and zoom controls behind the canvas. */
+.view > .pane.show { display: flex; flex-direction: column; }
+
+.canvas-wrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: auto; }
+canvas.grid { display: block; background: #060d12; }
+
+.editor-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--daw-line);
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+.editor-bar select,
+.tabs select {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--daw-line);
+  color: var(--text-main);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  min-height: 28px;
+  padding: 2px 6px;
+}
+
+/* ---------- mixer ---------- */
+.mixer-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; gap: 6px; padding: 10px; }
+/* Range inputs default to the platform blue, which reads as "unstyled web
+   form" next to everything else here. Both the track and the thumb need
+   explicit rules in WebKit and Firefox. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 20px;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: rgba(57, 255, 143, 0.18);
+  border: 1px solid var(--daw-line);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px; height: 16px;
+  margin-top: -7px;
+  background: var(--hud-green);
+  border: 1px solid #0b1a15;
+  box-shadow: 0 0 6px rgba(57, 255, 143, 0.5);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  background: rgba(57, 255, 143, 0.18);
+  border: 1px solid var(--daw-line);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 16px; border-radius: 0;
+  background: var(--hud-green);
+  border: 1px solid #0b1a15;
+}
+
+.strip {
+  width: 122px;
+  flex: 0 0 auto;
+  border: 1px solid var(--daw-line);
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 6px;
+  gap: 6px;
+}
+.strip.sel { border-color: var(--hud-green); background: rgba(57, 255, 143, 0.06); }
+.strip.master { border-color: var(--hud-orange); }
+.strip h4 {
+  margin: 0;
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hud-green);
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.strip.master h4 { color: var(--hud-orange); }
+.fx-slots { display: flex; flex-direction: column; gap: 2px; min-height: 40px; }
+.fx-slot {
+  font-size: 0.58rem;
+  font-family: var(--mono);
+  border: 1px solid var(--daw-line);
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--text-dim);
+  padding: 2px 4px;
+  cursor: pointer;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 22px;
+}
+.fx-slot:hover { border-color: var(--hud-green-dim); color: var(--text-main); }
+/* min-width:0 is what lets the name shrink inside a flex row — without it the
+   name's min-content width wins and the whole slot overflows the strip. */
+.fx-slot .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.fx-slot .dot-btn { width: 15px; height: 16px; font-size: 0.5rem; flex: 0 0 auto; }
+.fx-slot.byp { opacity: 0.45; text-decoration: line-through; }
+.fx-add { color: var(--hud-green-dim); text-align: center; justify-content: center; }
+.strip .fader { width: 100%; }
+.strip .vu {
+  height: 6px; border: 1px solid var(--daw-line); position: relative; overflow: hidden;
+  background: rgba(0,0,0,.6);
+}
+.strip .vu i { position: absolute; inset: 0 100% 0 0; background: linear-gradient(90deg,#1c8a52,#39ff8f); }
+.strip .row { display: flex; gap: 4px; justify-content: center; }
+.strip .val { font-family: var(--mono); font-size: 0.6rem; color: var(--text-dim); text-align: center; }
+
+/* ---------- plugin window ---------- */
+.plugwin {
+  position: absolute;
+  right: 12px; top: 12px;
+  width: 300px;
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  background: rgba(8, 18, 15, 0.97);
+  border: 1px solid var(--hud-green-dim);
+  box-shadow: 0 0 26px rgba(0, 0, 0, 0.7);
+  z-index: 20;
+  display: none;
+}
+.plugwin.show { display: block; }
+.plugwin header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--daw-line);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--hud-green);
+}
+.plugwin header .grow { flex: 1; }
+.plugwin .body { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.knob-row { display: flex; flex-direction: column; gap: 3px; }
+.knob-row .top { display: flex; justify-content: space-between; font-size: 0.62rem; color: var(--text-dim); }
+.knob-row .top b { color: var(--hud-green); font-family: var(--mono); font-weight: normal; }
+.knob-row input[type="range"] { width: 100%; }
+.knob-row select {
+  background: rgba(0, 0, 0, 0.45); border: 1px solid var(--daw-line);
+  color: var(--text-main); font-family: var(--mono); font-size: 0.72rem; min-height: 30px;
+}
+
+/* ---------- keyboard ---------- */
+.keybar {
+  border-top: 1px solid var(--daw-line-strong);
+  background: rgba(6, 14, 12, 0.94);
+  padding: 6px 10px 8px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.keys { position: relative; height: 56px; flex: 1; min-width: 0; user-select: none; }
+.key {
+  position: absolute; top: 0; bottom: 0;
+  border: 1px solid #0b1a15;
+  background: linear-gradient(180deg, #dff7e9, #9fc9b4);
+  cursor: pointer;
+}
+.key.black {
+  background: linear-gradient(180deg, #123, #061014);
+  height: 62%; bottom: auto; z-index: 2; border-color: #000;
+}
+.key.down { background: var(--hud-green); }
+.key.black.down { background: var(--hud-green-dim); }
+.status {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  min-width: 210px;
+  text-align: right;
+}
+
+/* ---------- overlays ---------- */
+.arm {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(3, 8, 10, 0.93);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 20px;
+}
+.arm.hidden { display: none; }
+.arm .inner { max-width: 560px; }
+.arm h2 { font-family: "Press Start 2P", var(--mono); font-size: 14px; color: var(--hud-green); line-height: 1.8; }
+.arm p { color: var(--text-dim); font-size: 0.82rem; line-height: 1.6; }
+.arm .big {
+  font-family: var(--mono); font-size: 0.9rem; margin-top: 16px;
+  padding: 14px 28px; min-height: 48px;
+  color: var(--hud-green); background: rgba(57, 255, 143, 0.1);
+  border: 1px solid var(--hud-green); cursor: pointer;
+}
+.arm .big:hover { background: rgba(57, 255, 143, 0.2); }
+
+.toast {
+  position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
+  background: rgba(8, 20, 16, 0.96); border: 1px solid var(--hud-green-dim);
+  color: var(--text-main); font-family: var(--mono); font-size: 0.74rem;
+  padding: 9px 16px; z-index: 70; display: none; max-width: 80vw; text-align: center;
+}
+.toast.show { display: block; }
+
+.menu {
+  position: absolute; z-index: 80;
+  background: rgba(8, 20, 16, 0.98);
+  border: 1px solid var(--hud-green-dim);
+  min-width: 190px; max-height: 60vh; overflow: auto;
+  display: none;
+  box-shadow: 0 0 20px rgba(0,0,0,.7);
+}
+.menu.show { display: block; }
+.menu button {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; color: var(--text-main);
+  font-family: var(--mono); font-size: 0.72rem; padding: 7px 12px; cursor: pointer;
+  min-height: 30px;
+}
+.menu button:hover { background: rgba(57, 255, 143, 0.14); color: var(--hud-green); }
+.menu .sep { border-top: 1px solid var(--daw-line); margin: 3px 0; }
+.menu .hdr {
+  font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--hud-orange); padding: 6px 12px 3px;
+}
+
+/* ---------- small screens ----------
+   A DAW does not fit a phone, and pretending otherwise would be worse than
+   saying so. The workspace still loads and plays; the notice sets the
+   expectation, and the controls that remain keep the sitewide 44px floor. */
+.mobile-note { display: none; }
+@media (max-width: 900px) {
+  .daw-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .rack { border-right: none; border-bottom: 1px solid var(--daw-line-strong); max-height: 38vh; }
+  .mobile-note {
+    display: block;
+    padding: 7px 12px;
+    background: rgba(255, 145, 48, 0.12);
+    border-bottom: 1px solid rgba(255, 145, 48, 0.4);
+    color: var(--hud-orange);
+    font-size: 0.68rem;
+    text-align: center;
+  }
+  .plugwin { right: 6px; left: 6px; width: auto; }
+  .status { display: none; }
+}
+@media (max-width: 560px) {
+  .tbtn, .mini, .menu button, .arm .big { min-height: 44px; }
+  /* Width counts as much as height — a 25px-wide "?" button is as awkward to
+     hit as a 25px-tall one, and a height-only sweep clears it. */
+  .mini, .tbtn { min-width: 44px; }
+  .panel-head select, .editor-bar select, .tabs select { min-height: 44px; }
+  input[type="range"] { height: 44px; }
+  .dot-btn { width: 44px; height: 44px; font-size: 0.7rem; }
+  /* The step grid cannot reach 44px: sixteen steps across a phone is ~17px
+     each, and inflating them would only make neighbouring steps overlap —
+     the same trap as map markers spaced closer together than a fingertip.
+     The answer is a second affordance, not a bigger hit area, and the piano
+     roll is it: zoomable, one note per drag, no precision required. */
+  .step { height: 30px; }
+  .steprow .lbl { width: 52px; }
+  .field input[type="number"] { min-height: 44px; }
+  .keys { height: 68px; }
+}

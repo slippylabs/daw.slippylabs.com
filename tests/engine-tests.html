@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SlipDAW — engine tests</title>
+<style>
+  body { background:#050b10; color:#d9fbe8; font-family:Consolas,monospace; padding:24px; font-size:13px; }
+  h1 { color:#39ff8f; font-size:16px; }
+  .pass { color:#39ff8f; } .fail { color:#ff4655; }
+  li { margin:2px 0; list-style:none; }
+  #summary { margin:14px 0; font-weight:bold; }
+</style>
+</head>
+<body>
+<h1>SlipDAW engine tests</h1>
+<div id="summary">running…</div>
+<ul id="list"></ul>
+<div id="TESTOUT" hidden></div>
+<script type="module">
+  import { runAll } from './engine-tests.js';
+  const out = await runAll();
+  document.getElementById('summary').textContent = out.summary;
+  document.getElementById('summary').className = out.ok ? 'pass' : 'fail';
+  document.getElementById('list').innerHTML = out.results
+    .map(r => `<li class="${r.pass ? 'pass' : 'fail'}">${r.pass ? 'PASS' : 'FAIL'} — ${r.name}${r.detail ? ` <span style="opacity:.6">(${r.detail})</span>` : ''}</li>`)
+    .join('');
+  // Machine-readable line for the headless runner.
+  const line = `${out.ok ? 'OK' : 'FAILED'} :: ${out.summary} :: `
+    + out.results.map(r => `${r.pass ? '+' : '!'}${r.name}${r.detail ? `(${r.detail})` : ''}`).join(' | ');
+  document.getElementById('TESTOUT').textContent = line;
+  // Post results back rather than relying on the runner reading the DOM at
+  // the right moment: --dump-dom fires on load, long before these renders
+  // finish, and --virtual-time-budget does not advance an OfflineAudioContext
+  // (it renders on the audio thread, not on timers).
+  try { await fetch('/__results', { method: 'POST', body: line }); } catch {}
+</script>
+</body>
+</html>
