@@ -407,22 +407,192 @@ export const DRUM_VOICES = [
   { id: 'perc', name: 'Perc', pitch: 48 },
   { id: '808', name: '808', pitch: 24 },
 ];
+/** The Trap kit's constants, exactly as they were when they were ported from
+ *  the Trap Machine. This doubles as the base every other kit is merged onto,
+ *  so a kit only has to state what it changes — and so Trap itself is
+ *  literally the same numbers it always was. That matters: Trap is the demo
+ *  song's kit and the fixture in several engine tests, and "tidying" its
+ *  values while refactoring would silently alter every existing project. */
+const KIT_BASE = {
+  kick: {
+    punchStart: 185, punchEnd: 58, punchDrop: 0.05, punchGain: 0.68, punchDecay: 0.1, sat: 9,
+    subStart: 62, subEnd: 40, subDrop: 0.3, subGain: 0.64, subAttack: 0.008, subDecay: 0.4,
+    clickFreq: 1400, clickQ: 1, clickGain: 0.19, clickDecay: 0.01,
+  },
+  snare: {
+    bodyWave: 'triangle', bodyStart: 200, bodyEnd: 120, bodyDrop: 0.08, bodyGain: 0.7, bodyDecay: 0.1,
+    snapFreq: 2800, snapQ: 1.4, snapGain: 0.9, snapDecay: 0.06,
+    tailHp: 1500, tailGain: 0.35, tailDecay: 0.22,
+  },
+  clap: {
+    offsets: [0, 0.012, 0.024, 0.036], freq: 1200, q: 4, gain: 0.85, decay: 0.02,
+    tailOffset: 0.04, tailFreq: 1100, tailQ: 2, tailGain: 0.6, tailDecay: 0.18,
+  },
+  chat: { hp: 7500, gain: 0.5, decay: 0.045 },
+  ohat: { hp: 7000, gain: 0.45, decay: 0.32 },
+  ride: { hp: 2500, partials: [3000, 4200, 5400, 6800], partialGain: 0.22, gain: 0.32, decay: 1.1 },
+  perc: {
+    start: 520, end: 280, drop: 0.05, gain: 0.5, decay: 0.06,
+    noiseFreq: 1000, noiseQ: 3, noiseGain: 0.3, noiseDecay: 0.04,
+  },
+  b808: { mul: 1.85, drop: 0.06, gain: 0.9, decay: 0.55, sat: 8, fallback: 70 },
+};
+
+/** Shallow-merge one level deep — every kit override is `{ voice: { field } }`,
+ *  so this is all the merging that is needed and it keeps the table readable. */
+function mergeKit(base, over) {
+  const out = {};
+  Object.keys(base).forEach((voice) => { out[voice] = { ...base[voice], ...(over[voice] || {}) }; });
+  return out;
+}
+
+export const DRUM_KITS = [
+  {
+    id: 'trap', name: 'Trap',
+    blurb: 'The original Slippy kit — driven sub kick, tight crack, rolling hats.',
+    spec: mergeKit(KIT_BASE, {}),
+  },
+  {
+    id: '808', name: '808',
+    blurb: 'Long booming kick and a short dry snare, in the style of a TR-808.',
+    spec: mergeKit(KIT_BASE, {
+      kick: { punchStart: 120, punchEnd: 45, punchDrop: 0.04, punchGain: 0.5, punchDecay: 0.06, sat: 3,
+        subStart: 55, subEnd: 38, subDrop: 0.5, subGain: 0.75, subDecay: 0.9, clickGain: 0.1 },
+      snare: { bodyStart: 180, bodyEnd: 150, bodyDrop: 0.05, bodyDecay: 0.08,
+        snapFreq: 2000, snapQ: 1.8, snapGain: 0.7, snapDecay: 0.09,
+        tailHp: 1200, tailGain: 0.28, tailDecay: 0.12 },
+      chat: { hp: 8200, gain: 0.42, decay: 0.03 },
+      ohat: { hp: 8000, decay: 0.4 },
+      perc: { start: 440, end: 380, gain: 0.42, decay: 0.12, noiseGain: 0.12 },
+      b808: { sat: 6, decay: 0.8, mul: 1.6 },
+    }),
+  },
+  {
+    id: '909', name: '909',
+    blurb: 'Punchy clicky kick, noisy snare, bright hats — the house and techno kit.',
+    spec: mergeKit(KIT_BASE, {
+      kick: { punchStart: 220, punchEnd: 52, punchGain: 0.74, punchDecay: 0.09, sat: 12,
+        subStart: 68, subEnd: 44, subDecay: 0.28,
+        clickFreq: 2200, clickQ: 1.4, clickGain: 0.3, clickDecay: 0.008 },
+      snare: { bodyStart: 240, bodyEnd: 170, bodyDecay: 0.08,
+        snapFreq: 3400, snapQ: 1, snapGain: 0.95, snapDecay: 0.05,
+        tailHp: 2000, tailGain: 0.42, tailDecay: 0.18 },
+      chat: { hp: 9000, gain: 0.52, decay: 0.035 },
+      ohat: { hp: 8600, decay: 0.28 },
+      ride: { partials: [3600, 5200, 6900, 8400], decay: 1.2 },
+      perc: { start: 620, end: 300, decay: 0.05 },
+    }),
+  },
+  {
+    id: '606', name: '606',
+    blurb: 'Thin and tinny, almost no low end. Great for lo-fi and electro.',
+    spec: mergeKit(KIT_BASE, {
+      kick: { punchStart: 150, punchEnd: 60, punchGain: 0.6, punchDecay: 0.05, sat: 5,
+        subGain: 0.35, subDecay: 0.18, clickGain: 0.14 },
+      snare: { bodyStart: 300, bodyEnd: 210, bodyGain: 0.55, bodyDecay: 0.06,
+        snapFreq: 3800, snapQ: 1.2, snapDecay: 0.04,
+        tailHp: 3000, tailGain: 0.3, tailDecay: 0.1 },
+      chat: { hp: 10000, gain: 0.44, decay: 0.025 },
+      ohat: { hp: 9500, decay: 0.2 },
+      ride: { partials: [4000, 5600, 7200, 9000], gain: 0.24, decay: 0.7 },
+      perc: { start: 800, end: 420, decay: 0.04 },
+      b808: { decay: 0.3, sat: 4 },
+    }),
+  },
+  {
+    id: 'acoustic', name: 'Acoustic',
+    blurb: 'Softer saturation, longer skins and a woody ride — closer to a real kit.',
+    spec: mergeKit(KIT_BASE, {
+      kick: { punchStart: 140, punchEnd: 55, punchDrop: 0.06, punchGain: 0.6, punchDecay: 0.12, sat: 2,
+        subStart: 70, subEnd: 48, subDecay: 0.3,
+        clickFreq: 3000, clickQ: 0.8, clickGain: 0.25, clickDecay: 0.012 },
+      snare: { bodyStart: 220, bodyEnd: 160, bodyDrop: 0.1, bodyGain: 0.62, bodyDecay: 0.12,
+        snapFreq: 2400, snapQ: 0.9, snapGain: 0.8, snapDecay: 0.09,
+        tailHp: 1100, tailGain: 0.5, tailDecay: 0.3 },
+      chat: { hp: 6800, gain: 0.46, decay: 0.06 },
+      ohat: { hp: 6200, decay: 0.45 },
+      ride: { hp: 2000, partials: [2400, 3300, 4600, 5900], partialGain: 0.18, decay: 1.6 },
+      perc: { start: 420, end: 240, decay: 0.09, noiseFreq: 800, noiseDecay: 0.06 },
+      b808: { sat: 3, decay: 0.4 },
+    }),
+  },
+  {
+    id: 'lofi', name: 'Lo-Fi',
+    blurb: 'Dark and dusty — rolled-off hats, soft transients, tape-ish weight.',
+    spec: mergeKit(KIT_BASE, {
+      kick: { punchStart: 160, punchEnd: 52, punchGain: 0.58, sat: 4,
+        subDecay: 0.35, clickGain: 0.06 },
+      snare: { bodyStart: 190, bodyEnd: 130, bodyGain: 0.6,
+        snapFreq: 1800, snapQ: 2.2, snapGain: 0.62, snapDecay: 0.05,
+        tailHp: 900, tailGain: 0.22, tailDecay: 0.16 },
+      chat: { hp: 5200, gain: 0.34, decay: 0.035 },
+      ohat: { hp: 4800, gain: 0.34, decay: 0.22 },
+      ride: { hp: 1800, partials: [2200, 3000, 3900, 4800], partialGain: 0.16, gain: 0.24, decay: 0.8 },
+      perc: { start: 380, end: 220, gain: 0.4, noiseFreq: 700, noiseGain: 0.2 },
+      b808: { sat: 5, decay: 0.6 },
+    }),
+  },
+  {
+    id: 'techno', name: 'Techno',
+    blurb: 'Hard saturated kick, clipped hats, relentless.',
+    spec: mergeKit(KIT_BASE, {
+      kick: { punchStart: 200, punchEnd: 48, punchGain: 0.78, punchDecay: 0.08, sat: 16,
+        subStart: 58, subEnd: 36, subGain: 0.8, subDecay: 0.5 },
+      snare: { bodyStart: 200, bodyEnd: 140, bodyGain: 0.58,
+        snapFreq: 3000, snapQ: 1.6, snapDecay: 0.055,
+        tailHp: 2400, tailGain: 0.3, tailDecay: 0.14 },
+      chat: { hp: 9500, gain: 0.55, decay: 0.028 },
+      ohat: { hp: 9000, decay: 0.24 },
+      ride: { partials: [3400, 4800, 6200, 7800], decay: 0.9 },
+      perc: { start: 700, end: 340, decay: 0.05, noiseFreq: 1400 },
+      b808: { sat: 12, decay: 0.45 },
+    }),
+  },
+  {
+    id: 'breakbeat', name: 'Breakbeat',
+    blurb: 'Bright snappy snare and short hats, cut for jungle and drum & bass.',
+    spec: mergeKit(KIT_BASE, {
+      kick: { punchStart: 170, punchEnd: 62, punchDecay: 0.07, sat: 7, subDecay: 0.22, clickGain: 0.22 },
+      snare: { bodyStart: 260, bodyEnd: 180, bodyGain: 0.66, bodyDecay: 0.09,
+        snapFreq: 3200, snapQ: 1.1, snapGain: 0.92, snapDecay: 0.075,
+        tailHp: 1600, tailGain: 0.45, tailDecay: 0.26 },
+      chat: { hp: 7800, gain: 0.48, decay: 0.038 },
+      ohat: { hp: 7200, decay: 0.26 },
+      ride: { partials: [3200, 4400, 5800, 7200], decay: 1.3 },
+      perc: { start: 560, end: 300, decay: 0.05 },
+    }),
+  },
+];
+
+const KIT_BY_ID = new Map(DRUM_KITS.map((k) => [k.id, k]));
 
 function createDrumKit(ctx, params = {}) {
-  const p = { level: 0.9, tune: 0, ...params };
+  const p = {
+    level: 0.9, tune: 0, kit: 'trap',
+    // Resolved AudioBuffers keyed by voice id, e.g. { kick: AudioBuffer }.
+    // The project stores asset ids; buildGraph resolves them, because the
+    // instrument has no business knowing about IndexedDB.
+    sampleBuffers: null,
+    ...params,
+  };
   const output = ctx.createGain();
   output.gain.value = p.level;
   const noise = createNoiseBuffer(ctx, 2, 20250814);
   let openHatVoice = null;
-  let satCurve = null;
+  const satCurves = new Map();
+
+  const kitSpec = () => (KIT_BY_ID.get(p.kit) || KIT_BY_ID.get('trap')).spec;
 
   function noiseSource() {
     const s = ctx.createBufferSource();
     s.buffer = noise; s.loop = true;
     return s;
   }
+  /** Saturation curves are cached per amount now that kits use different
+   *  drive settings — the old single-slot cache would have handed the kick's
+   *  curve to the 808 and vice versa. */
   function satCurveFor(amount) {
-    if (satCurve) return satCurve;
+    if (satCurves.has(amount)) return satCurves.get(amount);
     // Note the (n - 1) divisor. With the more obvious `(i * 2) / n - 1` the
     // curve never contains a sample at exactly x = 0 — it straddles zero
     // asymmetrically, so a WaveShaper fed *silence* interpolates to a
@@ -435,7 +605,7 @@ function createDrumKit(ctx, params = {}) {
       const x = (i * 2) / (n - 1) - 1;
       curve[i] = Math.tanh(amount * x) / Math.tanh(amount);
     }
-    satCurve = curve;
+    satCurves.set(amount, curve);
     return curve;
   }
   function chokeHats(time) {
@@ -448,167 +618,196 @@ function createDrumKit(ctx, params = {}) {
     openHatVoice = null;
   }
 
+  /** A slot with a user sample loaded plays that instead of synthesizing.
+   *  Pitch, when given, is relative to the slot's own default note, so an
+   *  808 sample follows a bassline the same way the synthesized one does. */
+  const ROOT_OF = new Map(DRUM_VOICES.map((v) => [v.id, v.pitch]));
+  function sampleFor(voiceId) {
+    return (p.sampleBuffers && p.sampleBuffers[voiceId]) || null;
+  }
+  function playSample(buf, voiceId, time, amp, pitch) {
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    if (pitch !== undefined && pitch !== null) {
+      const root = ROOT_OF.get(voiceId) ?? 60;
+      src.playbackRate.value = Math.pow(2, (pitch - root) / 12);
+    }
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(Math.max(0.0001, amp), time);
+    src.connect(g); g.connect(output);
+    src.start(time);
+  }
+
   const V = {
     kick(time, amp) {
+      const K = kitSpec().kick;
       const punch = ctx.createOscillator();
       punch.type = 'sine';
-      punch.frequency.setValueAtTime(185, time);
-      punch.frequency.exponentialRampToValueAtTime(58, time + 0.05);
+      punch.frequency.setValueAtTime(K.punchStart, time);
+      punch.frequency.exponentialRampToValueAtTime(K.punchEnd, time + K.punchDrop);
       const shaper = ctx.createWaveShaper();
-      shaper.curve = satCurveFor(9); shaper.oversample = '2x';
+      shaper.curve = satCurveFor(K.sat); shaper.oversample = '2x';
       const pg = ctx.createGain();
-      pg.gain.setValueAtTime(0.68 * amp, time);
-      pg.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+      pg.gain.setValueAtTime(K.punchGain * amp, time);
+      pg.gain.exponentialRampToValueAtTime(0.001, time + K.punchDecay);
       punch.connect(shaper); shaper.connect(pg); pg.connect(output);
-      punch.start(time); punch.stop(time + 0.12);
+      punch.start(time); punch.stop(time + K.punchDecay + 0.02);
 
       const sub = ctx.createOscillator();
       sub.type = 'sine';
-      sub.frequency.setValueAtTime(62, time);
-      sub.frequency.exponentialRampToValueAtTime(40, time + 0.3);
+      sub.frequency.setValueAtTime(K.subStart, time);
+      sub.frequency.exponentialRampToValueAtTime(K.subEnd, time + K.subDrop);
       const sg = ctx.createGain();
       sg.gain.setValueAtTime(0.001, time);
-      sg.gain.linearRampToValueAtTime(0.64 * amp, time + 0.008);
-      sg.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+      sg.gain.linearRampToValueAtTime(K.subGain * amp, time + K.subAttack);
+      sg.gain.exponentialRampToValueAtTime(0.001, time + K.subDecay);
       sub.connect(sg); sg.connect(output);
-      sub.start(time); sub.stop(time + 0.42);
+      sub.start(time); sub.stop(time + K.subDecay + 0.02);
 
       const click = noiseSource();
       const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 1;
+      bp.type = 'bandpass'; bp.frequency.value = K.clickFreq; bp.Q.value = K.clickQ;
       const cg = ctx.createGain();
-      cg.gain.setValueAtTime(0.19 * amp, time);
-      cg.gain.exponentialRampToValueAtTime(0.001, time + 0.01);
+      cg.gain.setValueAtTime(K.clickGain * amp, time);
+      cg.gain.exponentialRampToValueAtTime(0.001, time + K.clickDecay);
       click.connect(bp); bp.connect(cg); cg.connect(output);
-      click.start(time); click.stop(time + 0.02);
+      click.start(time); click.stop(time + K.clickDecay + 0.01);
     },
     snare(time, amp) {
+      const K = kitSpec().snare;
       const body = ctx.createOscillator();
-      body.type = 'triangle';
-      body.frequency.setValueAtTime(200, time);
-      body.frequency.exponentialRampToValueAtTime(120, time + 0.08);
+      body.type = K.bodyWave;
+      body.frequency.setValueAtTime(K.bodyStart, time);
+      body.frequency.exponentialRampToValueAtTime(K.bodyEnd, time + K.bodyDrop);
       const bg = ctx.createGain();
-      bg.gain.setValueAtTime(0.7 * amp, time);
-      bg.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+      bg.gain.setValueAtTime(K.bodyGain * amp, time);
+      bg.gain.exponentialRampToValueAtTime(0.001, time + K.bodyDecay);
       body.connect(bg); bg.connect(output);
-      body.start(time); body.stop(time + 0.12);
+      body.start(time); body.stop(time + K.bodyDecay + 0.02);
 
       const snap = noiseSource();
       const sbp = ctx.createBiquadFilter();
-      sbp.type = 'bandpass'; sbp.frequency.value = 2800; sbp.Q.value = 1.4;
+      sbp.type = 'bandpass'; sbp.frequency.value = K.snapFreq; sbp.Q.value = K.snapQ;
       const sg = ctx.createGain();
-      sg.gain.setValueAtTime(0.9 * amp, time);
-      sg.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+      sg.gain.setValueAtTime(K.snapGain * amp, time);
+      sg.gain.exponentialRampToValueAtTime(0.001, time + K.snapDecay);
       snap.connect(sbp); sbp.connect(sg); sg.connect(output);
-      snap.start(time); snap.stop(time + 0.08);
+      snap.start(time); snap.stop(time + K.snapDecay + 0.02);
 
       const tail = noiseSource();
       const hp = ctx.createBiquadFilter();
-      hp.type = 'highpass'; hp.frequency.value = 1500;
+      hp.type = 'highpass'; hp.frequency.value = K.tailHp;
       const tg = ctx.createGain();
-      tg.gain.setValueAtTime(0.35 * amp, time);
-      tg.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+      tg.gain.setValueAtTime(K.tailGain * amp, time);
+      tg.gain.exponentialRampToValueAtTime(0.001, time + K.tailDecay);
       tail.connect(hp); hp.connect(tg); tg.connect(output);
-      tail.start(time); tail.stop(time + 0.24);
+      tail.start(time); tail.stop(time + K.tailDecay + 0.02);
     },
     clap(time, amp) {
-      [0, 0.012, 0.024, 0.036].forEach((off) => {
+      const K = kitSpec().clap;
+      K.offsets.forEach((off) => {
         const t = time + off;
         const n = noiseSource();
         const bp = ctx.createBiquadFilter();
-        bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 4;
+        bp.type = 'bandpass'; bp.frequency.value = K.freq; bp.Q.value = K.q;
         const g = ctx.createGain();
-        g.gain.setValueAtTime(0.85 * amp, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+        g.gain.setValueAtTime(K.gain * amp, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + K.decay);
         n.connect(bp); bp.connect(g); g.connect(output);
-        n.start(t); n.stop(t + 0.03);
+        n.start(t); n.stop(t + K.decay + 0.01);
       });
-      const tt = time + 0.04;
+      const tt = time + K.tailOffset;
       const tn = noiseSource();
       const bp2 = ctx.createBiquadFilter();
-      bp2.type = 'bandpass'; bp2.frequency.value = 1100; bp2.Q.value = 2;
+      bp2.type = 'bandpass'; bp2.frequency.value = K.tailFreq; bp2.Q.value = K.tailQ;
       const tg = ctx.createGain();
-      tg.gain.setValueAtTime(0.6 * amp, tt);
-      tg.gain.exponentialRampToValueAtTime(0.001, tt + 0.18);
+      tg.gain.setValueAtTime(K.tailGain * amp, tt);
+      tg.gain.exponentialRampToValueAtTime(0.001, tt + K.tailDecay);
       tn.connect(bp2); bp2.connect(tg); tg.connect(output);
-      tn.start(tt); tn.stop(tt + 0.2);
+      tn.start(tt); tn.stop(tt + K.tailDecay + 0.02);
     },
     chat(time, amp) {
+      const K = kitSpec().chat;
       chokeHats(time);
       const n = noiseSource();
       const hp = ctx.createBiquadFilter();
-      hp.type = 'highpass'; hp.frequency.value = 7500;
+      hp.type = 'highpass'; hp.frequency.value = K.hp;
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.5 * amp, time);
-      g.gain.exponentialRampToValueAtTime(0.001, time + 0.045);
+      g.gain.setValueAtTime(K.gain * amp, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time + K.decay);
       n.connect(hp); hp.connect(g); g.connect(output);
-      n.start(time); n.stop(time + 0.06);
+      n.start(time); n.stop(time + K.decay + 0.015);
     },
     ohat(time, amp) {
+      const K = kitSpec().ohat;
       chokeHats(time);
       const n = noiseSource();
       const hp = ctx.createBiquadFilter();
-      hp.type = 'highpass'; hp.frequency.value = 7000;
+      hp.type = 'highpass'; hp.frequency.value = K.hp;
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.45 * amp, time);
-      g.gain.exponentialRampToValueAtTime(0.001, time + 0.32);
+      g.gain.setValueAtTime(K.gain * amp, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time + K.decay);
       n.connect(hp); hp.connect(g); g.connect(output);
-      n.start(time); n.stop(time + 0.34);
+      n.start(time); n.stop(time + K.decay + 0.02);
       openHatVoice = { gain: g.gain };
     },
     ride(time, amp) {
+      const K = kitSpec().ride;
       const bus = ctx.createGain();
       bus.gain.setValueAtTime(0.001, time);
-      bus.gain.linearRampToValueAtTime(0.32 * amp, time + 0.005);
-      bus.gain.exponentialRampToValueAtTime(0.001, time + 1.1);
+      bus.gain.linearRampToValueAtTime(K.gain * amp, time + 0.005);
+      bus.gain.exponentialRampToValueAtTime(0.001, time + K.decay);
       const hp = ctx.createBiquadFilter();
-      hp.type = 'highpass'; hp.frequency.value = 2500;
+      hp.type = 'highpass'; hp.frequency.value = K.hp;
       hp.connect(bus); bus.connect(output);
-      [3000, 4200, 5400, 6800].forEach((f) => {
+      K.partials.forEach((f) => {
         const osc = ctx.createOscillator();
         osc.type = 'square'; osc.frequency.value = f;
-        const og = ctx.createGain(); og.gain.value = 0.22;
+        const og = ctx.createGain(); og.gain.value = K.partialGain;
         osc.connect(og); og.connect(hp);
-        osc.start(time); osc.stop(time + 1.15);
+        osc.start(time); osc.stop(time + K.decay + 0.05);
       });
       const n = noiseSource();
-      n.connect(hp); n.start(time); n.stop(time + 1.15);
+      n.connect(hp);
+      n.start(time); n.stop(time + K.decay + 0.05);
     },
     perc(time, amp) {
+      const K = kitSpec().perc;
       const osc = ctx.createOscillator();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(520, time);
-      osc.frequency.exponentialRampToValueAtTime(280, time + 0.05);
+      osc.frequency.setValueAtTime(K.start, time);
+      osc.frequency.exponentialRampToValueAtTime(K.end, time + K.drop);
       const og = ctx.createGain();
-      og.gain.setValueAtTime(0.5 * amp, time);
-      og.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+      og.gain.setValueAtTime(K.gain * amp, time);
+      og.gain.exponentialRampToValueAtTime(0.001, time + K.decay);
       osc.connect(og); og.connect(output);
-      osc.start(time); osc.stop(time + 0.08);
+      osc.start(time); osc.stop(time + K.decay + 0.02);
 
       const n = noiseSource();
       const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass'; bp.frequency.value = 1000; bp.Q.value = 3;
+      bp.type = 'bandpass'; bp.frequency.value = K.noiseFreq; bp.Q.value = K.noiseQ;
       const ng = ctx.createGain();
-      ng.gain.setValueAtTime(0.3 * amp, time);
-      ng.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+      ng.gain.setValueAtTime(K.noiseGain * amp, time);
+      ng.gain.exponentialRampToValueAtTime(0.001, time + K.noiseDecay);
       n.connect(bp); bp.connect(ng); ng.connect(output);
-      n.start(time); n.stop(time + 0.05);
+      n.start(time); n.stop(time + K.noiseDecay + 0.01);
     },
     // The 808 is a bass instrument, not a fixed drum hit: it follows pitch,
     // so you can write a bassline with it the way trap producers actually do.
     '808': (time, amp, pitch) => {
-      const base = pitch !== undefined ? midiToFreq(pitch) : 70;
+      const K = kitSpec().b808;
+      const base = pitch !== undefined && pitch !== null ? midiToFreq(pitch) : K.fallback;
       const osc = ctx.createOscillator();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(base * 1.85, time);
-      osc.frequency.exponentialRampToValueAtTime(Math.max(20, base), time + 0.06);
+      osc.frequency.setValueAtTime(base * K.mul, time);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(20, base), time + K.drop);
       const shaper = ctx.createWaveShaper();
-      shaper.curve = satCurveFor(8); shaper.oversample = '2x';
+      shaper.curve = satCurveFor(K.sat); shaper.oversample = '2x';
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.9 * amp, time);
-      g.gain.exponentialRampToValueAtTime(0.001, time + 0.55);
+      g.gain.setValueAtTime(K.gain * amp, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time + K.decay);
       osc.connect(shaper); shaper.connect(g); g.connect(output);
-      osc.start(time); osc.stop(time + 0.58);
+      osc.start(time); osc.stop(time + K.decay + 0.03);
     },
   };
 
@@ -620,8 +819,11 @@ function createDrumKit(ctx, params = {}) {
   const api = {
     type: 'drumkit', output, params: p, voices: DRUM_VOICES,
     trigger(voiceId, when, vel = 100, pitch) {
+      const amp = clamp(vel / 100, 0, 1.6);
+      const buf = sampleFor(voiceId);
+      if (buf) { playSample(buf, voiceId, when, amp, pitch); return; }
       const fn = V[voiceId];
-      if (fn) fn(when, clamp(vel / 100, 0, 1.6), pitch);
+      if (fn) fn(when, amp, pitch);
     },
     noteOn(pitch, vel, when) {
       const id = byPitch.get(pitch);
@@ -721,6 +923,21 @@ export function createInstrument(ctx, type, params = {}) {
   }
 }
 
+/** The factory defaults, mirrored as data.
+ *
+ *  Without this the plugin window had no way to know what an *unset*
+ *  parameter actually is, so it fell back to the slider minimum: a fresh
+ *  drum kit showed "Level 0.00" while really playing at 0.9, and the Kit
+ *  dropdown rendered blank because the channel had no explicit kit. Every
+ *  value here must match the corresponding factory's `const p = {...}`. */
+export const INSTRUMENT_DEFAULTS = {
+  analog: { preset: 'sawtooth', cutoff: null, attackMs: null, releaseMs: null, glideMs: 0, level: 0.8 },
+  fm: { ratio: 2, index: 300, attackMs: 8, decayMs: 400, releaseMs: 220, modDecayMs: 260, level: 0.7 },
+  pluck: { decay: 0.996, brightness: 0.5, level: 0.8 },
+  drumkit: { kit: 'trap', level: 0.9, tune: 0 },
+  sampler: { rootPitch: 60, start: 0, attackMs: 2, releaseMs: 120, loop: false, level: 0.9 },
+};
+
 /** Parameter descriptors drive the generic plugin window — adding a knob is
  *  a data change, not a UI change. */
 export const INSTRUMENT_PARAMS = {
@@ -745,6 +962,7 @@ export const INSTRUMENT_PARAMS = {
     { name: 'level', label: 'Level', type: 'range', min: 0, max: 1.4, step: 0.01 },
   ],
   drumkit: [
+    { name: 'kit', label: 'Kit', type: 'enum', options: DRUM_KITS.map((k) => ({ value: k.id, label: k.name })) },
     { name: 'level', label: 'Level', type: 'range', min: 0, max: 1.6, step: 0.01 },
   ],
   sampler: [

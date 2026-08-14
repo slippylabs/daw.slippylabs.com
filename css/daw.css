@@ -140,7 +140,10 @@ body.daw-mode {
   border-bottom: 1px solid var(--daw-line);
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* Wrap, or the row silently overflows the 268px rack and spills its last
+     buttons across the editor bar next to it. */
+  flex-wrap: wrap;
+  gap: 6px;
   font-size: 0.62rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -387,6 +390,37 @@ input[type="range"]::-moz-range-thumb {
   color: var(--text-main); font-family: var(--mono); font-size: 0.72rem; min-height: 30px;
 }
 
+/* ---------- drum kit sample slots ---------- */
+.slot-list {
+  border-top: 1px solid var(--daw-line);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.slot-head {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--hud-orange);
+  margin-bottom: 3px;
+}
+.slot-row { display: flex; align-items: center; gap: 5px; }
+.slot-name { width: 66px; font-size: 0.66rem; color: var(--text-main); flex: 0 0 auto; }
+.slot-state {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slot-state.loaded { color: var(--hud-green); }
+.slot-row .mini { font-size: 0.6rem; padding: 2px 7px; min-height: 24px; }
+.slot-row .mini:disabled { opacity: 0.35; cursor: default; }
+
 /* ---------- keyboard ---------- */
 .keybar {
   border-top: 1px solid var(--daw-line-strong);
@@ -491,7 +525,17 @@ input[type="range"]::-moz-range-thumb {
   /* Width counts as much as height — a 25px-wide "?" button is as awkward to
      hit as a 25px-tall one, and a height-only sweep clears it. */
   .mini, .tbtn { min-width: 44px; }
-  .panel-head select, .editor-bar select, .tabs select { min-height: 44px; }
+  /* Every select, including the ones inside plugin windows — the kit picker
+     lives there. Listed explicitly rather than as a bare `select`, because
+     the base `.editor-bar select` rule (0,1,1) out-specifies a bare element
+     selector (0,0,1) no matter which block comes later in the file. */
+  select,
+  .panel-head select, .editor-bar select, .tabs select, .knob-row select,
+  .plugwin select { min-height: 44px; }
+  /* Specificity, not order: `.slot-row .mini` (0,2,0) beats a bare `.mini`
+     inside this media query, so the slot buttons kept their 24px desktop
+     height until the override matched their specificity too. */
+  .slot-row .mini { min-height: 44px; min-width: 44px; }
   input[type="range"] { height: 44px; }
   .dot-btn { width: 44px; height: 44px; font-size: 0.7rem; }
   /* The step grid cannot reach 44px: sixteen steps across a phone is ~17px

@@ -385,6 +385,15 @@ const BUILDERS = {
     // latency that cannot be split cleanly between the two hops. Left as-is:
     // it is a slow widening of the bounce rather than a drift against the
     // grid, and inaudible at these times.
+    //
+    // Worth knowing when comparing two exports: Chrome resolves a feedback
+    // cycle's quantum of latency onto one render block or the next
+    // non-deterministically, so an echo tail can sit up to ~3ms earlier or
+    // later between renders of the same project. Level and energy are
+    // unaffected (measured: identical peak, ~1% tail energy), but two
+    // exports will not be bit-identical whenever a delay is in use. The
+    // engine suite's determinism test asserts perceptual equivalence for
+    // exactly this reason.
     const sync = () => {
       const t = clamp(p.timeMs / 1000, 0.001, 5);
       splitL.delayTime.value = t; splitR.delayTime.value = t;

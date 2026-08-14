@@ -14,6 +14,7 @@ const results = [];
 function check(name, pass, detail = '') { results.push({ name, pass: !!pass, detail }); return !!pass; }
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+const { renderProject, encodeWav, peakOf } = await import('../js/engine/render.js');
 const frame = document.getElementById('frame');
 await new Promise(r => { frame.onload = r; });
 const w = frame.contentWindow;
@@ -133,7 +134,6 @@ try {
   check('every instrument type builds in the live graph', instOk);
 
   // 9. Export renders through the same graph and produces a real WAV.
-  const { renderProject, encodeWav, peakOf } = await import('../js/engine/render.js');
   const buf = await renderProject(app.project, { toBeat: 8, tailSec: 0.5, audioBuffers: app.engine.audioBuffers });
   check('export render is audible', peakOf(buf) > 0.02, `peak=${peakOf(buf).toFixed(4)}`);
   const wav = encodeWav(buf, 16);
@@ -148,6 +148,73 @@ try {
   check('project autosaves to localStorage', !!raw && raw.length > 200, `${raw ? raw.length : 0} bytes`);
   const reparsed = JSON.parse(raw);
   check('autosaved project keeps its channels', reparsed.channels.length === app.project.channels.length);
+
+
+  // 12. The loop browser loads a loop, creating a channel if needed.
+  const { LOOPS } = await import('../js/model/loops.js');
+  d.getElementById('btn-loops').click();
+  await sleep(80);
+  const loopRows = d.querySelectorAll('#menu button');
+  check('loop browser opens with every loop listed', loopRows.length >= LOOPS.length,
+    `${loopRows.length} rows for ${LOOPS.length} loops`);
+  d.getElementById('menu').classList.remove('show');
+
+  const bassLoop = LOOPS.find(l => l.category === 'Bass');
+  const chansBefore = app.project.channels.length;
+  app.loadLoop(bassLoop);
+  await sleep(120);
+  const target = app.selectedChannel();
+  const written = app.selectedPattern().notes[target.id] || [];
+  check('loading a loop writes its notes', written.length === bassLoop.notes.length,
+    `${written.length} of ${bassLoop.notes.length}`);
+  check('the loop landed on a channel that can play it',
+    target.instrument === bassLoop.target.instrument && !!target.pitched === !!bassLoop.target.pitched,
+    `${target.instrument}/pitched=${!!target.pitched}`);
+  app.undo();
+  await sleep(120);
+  check('undo reverses a loop load', app.project.channels.length === chansBefore,
+    `${app.project.channels.length} vs ${chansBefore}`);
+
+  // 13. Kit switching actually changes the rendered sound.
+  const { DRUM_KITS } = await import('../js/engine/instruments.js');
+  check('all eight kits are offered', DRUM_KITS.length === 8, `${DRUM_KITS.length}`);
+  const kitCh = app.project.channels.find(c => c.instrument === 'drumkit');
+  const renderKitNow = async () => {
+    const b = await renderProject(app.project, { toBeat: 4, tailSec: 0.4, audioBuffers: app.engine.audioBuffers });
+    return b.getChannelData(0);
+  };
+  kitCh.params.kit = 'trap';
+  const trapBuf = await renderKitNow();
+  kitCh.params.kit = '909';
+  app.engine.rebuild();
+  const nineBuf = await renderKitNow();
+  let kitDelta = 0;
+  for (let i = 0; i < trapBuf.length; i++) kitDelta = Math.max(kitDelta, Math.abs(trapBuf[i] - nineBuf[i]));
+  check('switching kit changes the sound', kitDelta > 0.01, `delta=${kitDelta.toFixed(3)}`);
+  kitCh.params.kit = 'trap';
+  app.engine.rebuild();
+
+  // 14. The Drum Kit plugin window exposes the sample slots.
+  app.openInstrumentWindow(kitCh);
+  await sleep(80);
+  check('drum kit window shows a slot per voice',
+    d.querySelectorAll('#plug-body .slot-row').length === 8,
+    `${d.querySelectorAll('#plug-body .slot-row').length} slots`);
+  check('drum kit window has the kit selector', !!d.querySelector('#plug-body select'));
+  d.getElementById('plug-close').click();
+
+  // 15. Bounce turns the current pattern into an audio clip.
+  const assetsBefore = app.project.audioAssets.length;
+  await app.bouncePattern();
+  await sleep(400);
+  check('bounce creates an audio asset', app.project.audioAssets.length === assetsBefore + 1,
+    `${assetsBefore} -> ${app.project.audioAssets.length}`);
+  const newAsset = app.project.audioAssets[app.project.audioAssets.length - 1];
+  const bounced = app.engine.audioBuffers.get(newAsset.id);
+  check('the bounced buffer contains audio', !!bounced && bounced.duration > 0.1,
+    bounced ? `${bounced.duration.toFixed(2)}s` : 'missing');
+  const placed = app.project.playlist.tracks.some(t => t.clips.some(c => c.ref === newAsset.id));
+  check('the bounce is placed on the playlist as a clip', placed);
 
   // 11. Nothing threw along the way.
   check('no uncaught errors in the app', errors.length === 0, errors.slice(0, 3).join(' | '));

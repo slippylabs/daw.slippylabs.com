@@ -75,7 +75,16 @@ export async function renderProject(project, opts = {}) {
     proj.mixer.inserts.forEach((i) => { i.solo = false; });
   }
 
-  const graph = buildGraph(ctx, proj);
+  // Buffers are bound to the context that made them, so every asset has to be
+  // copied into this offline context before the graph can use it — otherwise a
+  // sampled drum slot or a sampler channel renders silent.
+  const offlineBuffers = new Map();
+  audioBuffers.forEach((buf, id) => {
+    const t = transferBuffer(buf, ctx);
+    if (t) offlineBuffers.set(id, t);
+  });
+
+  const graph = buildGraph(ctx, proj, { audioBuffers: offlineBuffers });
   const index = buildClipIndex(proj);
   const timeAtBeat = (b) => beatsToSec(b - fromBeat, proj.bpm);
 
@@ -87,8 +96,7 @@ export async function renderProject(project, opts = {}) {
   if (mode === 'song') {
     const clips = collectAudioClips(proj, fromBeat, end, index);
     clips.forEach(({ clip, track }) => {
-      const live = audioBuffers.get(clip.ref);
-      const buf = transferBuffer(live, ctx);
+      const buf = offlineBuffers.get(clip.ref);
       if (!buf) return;
       const src = ctx.createBufferSource();
       src.buffer = buf;
