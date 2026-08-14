@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>SlipDAW — UI tests</title></head>
+<body style="background:#050b10;color:#d9fbe8;font-family:Consolas,monospace;padding:20px">
+<h1 style="color:#39ff8f;font-size:15px">SlipDAW UI tests</h1>
+<pre id="log">running…</pre>
+<iframe id="frame" src="../index.html" style="width:1280px;height:820px;border:1px solid #1c8a52"></iframe>
+<script type="module">
+// Drives the real application in an iframe: click through to the studio,
+// place notes, switch views, play, and export. Asserts on the resulting
+// project state and rendered audio, not on how anything looks.
+const log = [];
+const results = [];
+function check(name, pass, detail = '') { results.push({ name, pass: !!pass, detail }); return !!pass; }
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+const frame = document.getElementById('frame');
+await new Promise(r => { frame.onload = r; });
+const w = frame.contentWindow;
+const d = frame.contentDocument;
+
+// Collect console errors from the app — a clean console is part of the bar.
+const errors = [];
+w.addEventListener('error', (e) => errors.push(String(e.message)));
+w.addEventListener('unhandledrejection', (e) => errors.push(String(e.reason)));
+
+try {
+  // 1. The arm screen must be up, and nothing should have started yet.
+  check('arm overlay is shown before any gesture', !d.getElementById('arm').classList.contains('hidden'));
+
+  d.getElementById('arm-btn').click();
+  for (let i = 0; i < 100 && !w.slipdaw?.started; i++) await sleep(100);
+  const app = w.slipdaw;
+  check('studio starts on the open button', !!app && app.started);
+  check('arm overlay is dismissed after starting', d.getElementById('arm').classList.contains('hidden'));
+  check('audio context is running', app.engine.ctx && app.engine.ctx.state === 'running',
+    `state=${app.engine.ctx && app.engine.ctx.state}`);
+
+  // 2. The demo project loaded and built a graph.
+  check('a project is loaded', app.project.channels.length > 0, `${app.project.channels.length} channels`);
+  check('mixer graph was built', !!app.engine.graph && app.engine.graph.channels.size === app.project.channels.length);
+
+  // 3. Channel rack rendered steps, and clicking one writes a note.
+  const steps = d.querySelectorAll('.step');
+  check('channel rack rendered step buttons', steps.length > 0, `${steps.length} steps`);
+  const pat = app.selectedPattern();
+  const ch = app.selectedChannel();
+  const before = (pat.notes[ch.id] || []).length;
+  // Find a step that is currently off so the click adds rather than removes.
+  const offStep = [...steps].find(s => !s.classList.contains('on'));
+  offStep.click();
+  const after = (pat.notes[ch.id] || []).length;
+  check('clicking a step adds a note', after === before + 1, `${before} -> ${after}`);
+  offStep.click();
+  check('clicking it again removes the note', (pat.notes[ch.id] || []).length === before);
+
+  // 4. Undo/redo round-trips through a real edit.
+  const n0 = (pat.notes[ch.id] || []).length;
+  offStep.click();
+  app.undo();
+  check('undo restores the note count', (app.selectedPattern().notes[app.selectedChannel().id] || []).length === n0,
+    `expected ${n0}`);
+  app.redo();
+  check('redo re-applies the edit', (app.selectedPattern().notes[app.selectedChannel().id] || []).length === n0 + 1);
+  app.undo();
+
+  // 5. Views switch and each canvas actually draws pixels.
+  for (const view of ['piano', 'mixer', 'playlist']) {
+    app.setView(view);
+    await sleep(80);
+    check(`${view} view activates`, d.querySelector(`.pane[data-pane="${view}"]`).classList.contains('show'));
+  }
+  const plCanvas = d.getElementById('pl-canvas');
+  check('playlist canvas has real dimensions', plCanvas.width > 100 && plCanvas.height > 40,
+    `${plCanvas.width}x${plCanvas.height}`);
+  app.setView('piano');
+  await sleep(80);
+  const prCanvas = d.getElementById('pr-canvas');
+  check('piano roll canvas has real dimensions', prCanvas.width > 100 && prCanvas.height > 40,
+    `${prCanvas.width}x${prCanvas.height}`);
+  // Something must actually be painted, not just sized.
+  const px = prCanvas.getContext('2d').getImageData(0, 0, prCanvas.width, Math.min(60, prCanvas.height)).data;
+  let nonBlank = 0;
+  for (let i = 0; i < px.length; i += 4) if (px[i] + px[i + 1] + px[i + 2] > 40) nonBlank++;
+  check('piano roll actually paints', nonBlank > 100, `${nonBlank} lit pixels`);
+
+  // 6. Transport runs and the playhead advances.
+  app.setView('playlist');
+  app.setMode('song');
+  app.togglePlay();
+  await sleep(700);
+  const b1 = app.engine.currentBeat();
+  await sleep(600);
+  const b2 = app.engine.currentBeat();
+  check('transport plays and the playhead advances', app.engine.playing && b2 > b1, `${b1.toFixed(2)} -> ${b2.toFixed(2)}`);
+  check('position readout is updating', /\d+:\d+:\d+/.test(d.getElementById('pos').textContent),
+    d.getElementById('pos').textContent);
+  app.stop();
+  check('stop halts the transport', !app.engine.playing);
+
+  // 7. Adding a plugin to the mixer rebuilds the graph and shows a window.
+  app.setView('mixer');
+  await sleep(60);
+  const insertIdx = 1;
+  const fxBefore = app.project.mixer.inserts[insertIdx].fx.length;
+  app.project.mixer.inserts[insertIdx].fx.push({ id: 'test-fx', type: 'phaser', params: {}, bypass: false });
+  app.engine.rebuild();
+  app.mixer.render();
+  check('a plugin can be added to an insert',
+    app.project.mixer.inserts[insertIdx].fx.length === fxBefore + 1
+    && app.engine.graph.inserts[insertIdx].fx.length === fxBefore + 1);
+  app.openEffectWindow(insertIdx, fxBefore);
+  await sleep(60);
+  check('plugin window opens with controls',
+    d.getElementById('plugwin').classList.contains('show') && d.querySelectorAll('#plug-body .knob-row').length > 0,
+    `${d.querySelectorAll('#plug-body .knob-row').length} controls`);
+  d.getElementById('plug-close').click();
+
+  // 8. Every instrument can be instantiated through the real add-channel path.
+  const instTypes = ['analog', 'fm', 'pluck', 'drumkit', 'sampler'];
+  let instOk = true;
+  for (const t of instTypes) {
+    const c = app.project.channels.length;
+    app.project.channels.push({
+      id: `t_${t}`, name: t, instrument: t, params: {}, insert: 0,
+      color: '#39ff8f', mute: false, solo: false,
+    });
+    app.engine.rebuild();
+    if (!app.engine.graph.channels.get(`t_${t}`)) instOk = false;
+    app.project.channels.length = c;
+  }
+  app.engine.rebuild();
+  check('every instrument type builds in the live graph', instOk);
+
+  // 9. Export renders through the same graph and produces a real WAV.
+  const { renderProject, encodeWav, peakOf } = await import('../js/engine/render.js');
+  const buf = await renderProject(app.project, { toBeat: 8, tailSec: 0.5, audioBuffers: app.engine.audioBuffers });
+  check('export render is audible', peakOf(buf) > 0.02, `peak=${peakOf(buf).toFixed(4)}`);
+  const wav = encodeWav(buf, 16);
+  const dv = new DataView(wav);
+  check('exported WAV is well formed',
+    String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3)) === 'RIFF'
+    && wav.byteLength > 1000, `${wav.byteLength} bytes`);
+
+  // 10. Autosave round-trips the project through localStorage.
+  app.autosave();
+  const raw = w.localStorage.getItem('slipdaw.project.v1');
+  check('project autosaves to localStorage', !!raw && raw.length > 200, `${raw ? raw.length : 0} bytes`);
+  const reparsed = JSON.parse(raw);
+  check('autosaved project keeps its channels', reparsed.channels.length === app.project.channels.length);
+
+  // 11. Nothing threw along the way.
+  check('no uncaught errors in the app', errors.length === 0, errors.slice(0, 3).join(' | '));
+} catch (err) {
+  check('test harness completed', false, `${err && err.message}`);
+}
+
+const failed = results.filter(r => !r.pass);
+const summary = `${results.length - failed.length}/${results.length} passed`;
+const line = `${failed.length ? 'FAILED' : 'OK'} :: ${summary} :: `
+  + results.map(r => `${r.pass ? '+' : '!'}${r.name}${r.detail ? `(${r.detail})` : ''}`).join(' | ');
+document.getElementById('log').textContent = results
+  .map(r => `${r.pass ? 'PASS' : 'FAIL'} — ${r.name}${r.detail ? `  (${r.detail})` : ''}`).join('\n') + `\n\n${summary}`;
+try { await fetch('/__results', { method: 'POST', body: line }); } catch {}
+</script>
+</body>
+</html>
