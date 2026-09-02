@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SlipDAW — engine tests</title>
 <style>
   body { background:#050b10; color:#d9fbe8; font-family:Consolas,monospace; padding:24px; font-size:13px; }
@@ -34,5 +35,7 @@
   // (it renders on the audio thread, not on timers).
   try { await fetch('/__results', { method: 'POST', body: line }); } catch {}
 </script>
+<!-- Slippy Deck: floating Slippy TV + jukebox player. Renders nothing unless admin.slippylabs.com/whoami confirms a signed-in account. -->
+<script defer src="https://slippylabs.com/deck/deck.js"></script>
 </body>
 </html>

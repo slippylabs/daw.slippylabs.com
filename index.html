@@ -69,6 +69,10 @@
     <button class="mini" id="btn-file">FILE</button>
     <button class="mini" id="btn-export">EXPORT</button>
     <a class="mini" href="https://music.slippylabs.com/" style="text-decoration:none">&larr; SOUND BAY</a>
+    <!-- In the toolbar rather than a page footer: .daw-shell is position:fixed
+         inset:0 and <body> is scroll-locked in daw-mode, so nothing in the
+         document flow below it is reachable. -->
+    <a class="mini" href="https://slippylabs.com/privacy.html" style="text-decoration:none">Privacy</a>
   </div>
 
   <div class="mobile-note">SlipDAW is built for a desktop screen — on a phone the grids are cramped, but everything still plays.</div>
@@ -159,5 +163,6 @@
 <input type="file" id="slot-input" accept="audio/*" hidden>
 
 <script type="module" src="js/main.js?v=2"></script>
-</body>
+<!-- Slippy Deck: floating Slippy TV + jukebox player. Renders nothing unless admin.slippylabs.com/whoami confirms a signed-in account. -->
+<script defer src="https://slippylabs.com/deck/deck.js"></script></body>
 </html>
