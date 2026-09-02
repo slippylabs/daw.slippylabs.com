@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><title>SlipDAW — UI tests</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>SlipDAW — UI tests</title></head>
 <body style="background:#050b10;color:#d9fbe8;font-family:Consolas,monospace;padding:20px">
 <h1 style="color:#39ff8f;font-size:15px">SlipDAW UI tests</h1>
 <pre id="log">running…</pre>
@@ -230,5 +230,7 @@ document.getElementById('log').textContent = results
   .map(r => `${r.pass ? 'PASS' : 'FAIL'} — ${r.name}${r.detail ? `  (${r.detail})` : ''}`).join('\n') + `\n\n${summary}`;
 try { await fetch('/__results', { method: 'POST', body: line }); } catch {}
 </script>
+<!-- Slippy Deck: floating Slippy TV + jukebox player. Renders nothing unless admin.slippylabs.com/whoami confirms a signed-in account. -->
+<script defer src="https://slippylabs.com/deck/deck.js"></script>
 </body>
 </html>

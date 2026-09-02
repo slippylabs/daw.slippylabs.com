@@ -1,4 +1,4 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><title>baseline</title></head><body>
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>baseline</title></head><body>
 <script type="module">
 // Renders the demo song and posts it back as base64 WAV, so a refactor can be
 // proved not to have changed the sound rather than assumed not to have.
@@ -12,4 +12,6 @@ const CH = 0x8000;
 for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
 await fetch('/__results', { method: 'POST', body: btoa(bin) });
 document.body.textContent = 'posted ' + wav.byteLength + ' bytes';
-</script></body></html>
+</script><!-- Slippy Deck: floating Slippy TV + jukebox player. Renders nothing unless admin.slippylabs.com/whoami confirms a signed-in account. -->
+<script defer src="https://slippylabs.com/deck/deck.js"></script>
+</body></html>
