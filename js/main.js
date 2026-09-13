@@ -28,6 +28,11 @@ import { clone, clamp, midiToName, isBlackKey, formatPosition, uid } from './uti
 
 const $ = (id) => document.getElementById(id);
 
+// A double click is detected by hand, from two clicks on the same *item* inside this
+// window, because the views rebuild their DOM on every click -- the two clicks land on
+// different nodes and the browser fires no dblclick event at all.
+const DOUBLE_CLICK_MS = 400;
+
 class App {
   constructor() {
     this.engine = new Engine();
@@ -39,6 +44,7 @@ class App {
     this.autosaveTimer = null;
     this.recording = null;
     this.started = false;
+    this.lastChannelClick = { id: null, time: 0 };
   }
 
   // ---------- lifecycle ----------
@@ -176,13 +182,15 @@ class App {
       name.textContent = ch.name;
       name.title = 'Click to select · double-click to open the instrument';
       name.addEventListener('click', () => {
+        const now = Date.now();
+        const last = this.lastChannelClick;
+        const repeat = last.id === ch.id && now - last.time < DOUBLE_CLICK_MS;
+        this.lastChannelClick = { id: repeat ? null : ch.id, time: now };
+
         this.project.selection.channelId = ch.id;
         this.renderRack();
         this.drawCurrentView();
-      });
-      name.addEventListener('dblclick', () => {
-        this.project.selection.channelId = ch.id;
-        this.openInstrumentWindow(ch);
+        if (repeat) this.openInstrumentWindow(ch);
       });
 
       const mk = (label, on, title, fn) => {
