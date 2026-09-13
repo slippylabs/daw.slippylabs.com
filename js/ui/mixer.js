@@ -10,12 +10,17 @@ import { EFFECT_TYPES, EFFECT_DEFAULTS, paramsFor } from '../engine/effects.js';
 import { INSTRUMENT_PARAMS, INSTRUMENT_TYPES, INSTRUMENT_DEFAULTS, ANALOG_PRESETS } from '../engine/instruments.js';
 import { uid, gainToDb } from '../util.js';
 
+// Double clicks are detected by hand here: the mixer rebuilds on pointerdown, so the
+// browser never sees two clicks on the same node and fires no dblclick event.
+const DOUBLE_CLICK_MS = 400;
+
 export class MixerView {
   constructor(root, app) {
     this.root = root;
     this.app = app;
     this.selected = 0;
     this.strips = [];
+    this.lastTitleClick = { key: null, time: 0 };
   }
 
   render() {
@@ -37,11 +42,21 @@ export class MixerView {
 
     const title = document.createElement('h4');
     title.textContent = ins.name;
-    title.title = 'Click to rename';
-    title.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      const v = prompt('Insert name', ins.name);
-      if (v) { this.app.pushUndo(); ins.name = v; this.render(); this.app.autosave(); }
+    title.title = 'Double-click to rename';
+    // Hung off pointerdown rather than dblclick, and matched on the strip index rather
+    // than on this node: selecting a strip re-renders the whole mixer from pointerdown,
+    // so this <h4> is gone before the browser could ever pair two clicks on it.
+    title.addEventListener('pointerdown', () => {
+      const now = Date.now();
+      const last = this.lastTitleClick;
+      const repeat = last.key === idx && now - last.time < DOUBLE_CLICK_MS;
+      this.lastTitleClick = { key: repeat ? null : idx, time: now };
+      if (!repeat) return;
+      // Deferred so the pointer sequence finishes before the modal prompt blocks it.
+      setTimeout(() => {
+        const v = prompt('Insert name', ins.name);
+        if (v) { this.app.pushUndo(); ins.name = v; this.render(); this.app.autosave(); }
+      }, 0);
     });
     el.appendChild(title);
 
