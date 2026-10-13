@@ -2,7 +2,9 @@
 
 SlipDAW — a full digital audio workstation in your browser. Channel rack, piano roll, playlist and mixer, with 5 instruments, 8 drum kits, 17 effect plugins and 40 built-in loops. Write, record, mix, master and export to WAV. No signup, no install.
 
-**Live:** <https://daw.slippylabs.com/>
+> **Archived 2026-10-13.** SoundCraft replaced this app; the old address now
+> redirects to <https://soundcraft.slippylabs.com/>. The code still runs locally
+> as described below.
 
 ## What it does
 
